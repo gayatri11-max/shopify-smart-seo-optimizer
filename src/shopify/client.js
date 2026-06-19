@@ -42,4 +42,12 @@ export class ShopifyClient {
       body: JSON.stringify({ metafield: { namespace, key, value, type } }),
     });
   }
+
+  /** Update the alt text of a product image. */
+  async updateProductImageAlt(productId, imageId, alt) {
+    return this.request(`/products/${productId}/images/${imageId}.json`, {
+      method: 'PUT',
+      body: JSON.stringify({ image: { id: imageId, alt } }),
+    });
+  }
 }

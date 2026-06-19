@@ -2,6 +2,7 @@
 import { ShopifyClient } from './shopify/client.js';
 import { auditStore, auditProduct } from './audit/auditor.js';
 import { buildFixPlan, applyFixes } from './seo/apply.js';
+import { buildAltFixPlan, applyAltFixes } from './seo/altApply.js';
 import { buildProductJsonLd } from './seo/structuredData.js';
 import { log, paint } from './utils/logger.js';
 
@@ -32,22 +33,36 @@ async function runFix() {
   const apply = flags.has('--apply');
   const client = new ShopifyClient();
   const products = await client.getProducts({ limit: 50 });
-  const plan = [];
+  const metaPlan = [];
+  const altPlan = [];
   for (const product of products) {
     let metafields = [];
     try { metafields = await client.getProductMetafields(product.id); } catch { /* ignore */ }
     const { issues } = auditProduct(product, metafields);
-    plan.push(...buildFixPlan(product, issues));
+    metaPlan.push(...buildFixPlan(product, issues));
+    altPlan.push(...buildAltFixPlan(product));
   }
-  if (plan.length === 0) { log.success('No meta-tag fixes needed.'); return; }
-  log.info(`${plan.length} proposed meta-tag change(s):`);
-  for (const c of plan) {
-    console.log(`  ${paint('cyan', c.key)} on product ${c.productId} (${c.reason})`);
-    console.log(`    ${paint('dim', c.value)}`);
+  if (metaPlan.length === 0 && altPlan.length === 0) { log.success('No fixes needed.'); return; }
+
+  if (metaPlan.length) {
+    log.info(`${metaPlan.length} proposed meta-tag change(s):`);
+    for (const c of metaPlan) {
+      console.log(`  ${paint('cyan', c.key)} on product ${c.productId} (${c.reason})`);
+      console.log(`    ${paint('dim', c.value)}`);
+    }
   }
-  const result = await applyFixes(client, plan, { dryRun: !apply });
-  if (result.dryRun) log.warn('Dry run — nothing written. Re-run with --apply to write these changes.');
-  else log.success(`Applied ${result.applied} change(s) to your store.`);
+  if (altPlan.length) {
+    log.info(`${altPlan.length} proposed image alt-text change(s):`);
+    for (const c of altPlan) {
+      console.log(`  ${paint('cyan', 'alt')} image ${c.imageId} on product ${c.productId}`);
+      console.log(`    ${paint('dim', c.alt)}`);
+    }
+  }
+
+  const metaResult = await applyFixes(client, metaPlan, { dryRun: !apply });
+  const altResult = await applyAltFixes(client, altPlan, { dryRun: !apply });
+  if (metaResult.dryRun) log.warn('Dry run — nothing written. Re-run with --apply to write these changes.');
+  else log.success(`Applied ${metaResult.applied} meta-tag and ${altResult.applied} alt-text change(s) to your store.`);
 }
 
 async function runSchema() {
@@ -65,7 +80,7 @@ async function main() {
     case 'schema': return runSchema();
     case 'help':
     default:
-      console.log(`\nShopify Smart SEO Optimizer\n\nUsage:\n  seo-optimizer audit          Run an SEO audit on your store\n  seo-optimizer fix [--apply]  Preview meta-tag fixes (add --apply to write them)\n  seo-optimizer schema         Print Product JSON-LD for each product\n  seo-optimizer help           Show this help\n`);
+      console.log(`\nShopify Smart SEO Optimizer\n\nUsage:\n  seo-optimizer audit          Run an SEO audit on your store\n  seo-optimizer fix [--apply]  Preview meta-tag + alt-text fixes (add --apply to write them)\n  seo-optimizer schema         Print Product JSON-LD for each product\n  seo-optimizer help           Show this help\n`);
   }
 }
 
