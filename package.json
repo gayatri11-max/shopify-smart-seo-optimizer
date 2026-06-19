@@ -1,0 +1,29 @@
+{
+  "name": "shopify-smart-seo-optimizer",
+  "version": "0.1.0",
+  "description": "Smart SEO optimization tool for Shopify stores",
+  "type": "module",
+  "bin": {
+    "seo-optimizer": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "audit": "node src/index.js audit",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "shopify",
+    "seo",
+    "optimization",
+    "meta-tags",
+    "structured-data"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
